@@ -43,7 +43,9 @@
     .item-val { flex: 2; }
     .btn-del { width: 40px; background: #ef4444; color: #fff; padding: 12px 0; margin-top: 0; border: none; font-weight: bold; border-radius: 6px; }
 
-    /* Estilos do Catálogo */
+    /* Estilos do Catálogo e Aba Recolhível */
+    .btn-accordion { background: #1e293b; color: #38bdf8; border: 1px solid #334155; text-align: left; padding: 12px; font-weight: bold; font-size: 0.95rem; border-radius: 6px; cursor: pointer; margin-top: 15px; display: flex; justify-content: space-between; align-items: center; }
+    .btn-accordion:hover { background: #334155; }
     .cat-item { display: flex; flex-direction: column; gap: 8px; padding: 10px; background: #0f172a; border-radius: 6px; margin-top: 8px; border: 1px solid #334155; }
     .cat-item.inativo { opacity: 0.5; border-color: #475569; }
     .cat-item-header { display: flex; justify-content: space-between; align-items: center; }
@@ -231,8 +233,13 @@
       <button type="button" class="btn-clear" id="btnCancelarEdit" style="display:none; margin-top:10px;" onclick="cancelarEdicao()">Cancelar</button>
     </div>
 
-    <label style="margin-top:20px; font-weight:bold;">Seus Materiais Cadastrados:</label>
-    <div id="listaCatalogo" style="margin-top:8px;">
+    <!-- BOTÃO SANFONA / ACCORDION DA LISTA -->
+    <button type="button" class="btn-accordion" onclick="alternarVisibilidadeCatalogo()">
+      <span id="labelAccordionCatalogo">▶️ Ver / Gerenciar Materiais Cadastrados</span>
+      <span id="iconeAccordion">▼</span>
+    </button>
+
+    <div id="listaCatalogo" style="display:none; margin-top:8px;">
       <small style="color:#94a3b8;">Nenhum material cadastrado ainda.</small>
     </div>
   </div>
@@ -281,6 +288,8 @@
       { id: 3, nome: "Disjuntor Monofásico 20A DIN", preco: 18.00, ativo: true },
       { id: 4, nome: "Mão de Obra - Instalação de Ponto", preco: 80.00, ativo: true }
     ];
+
+    let catalogoAberto = false;
 
     // MODAL E PERFIL
     function abrirModalPerfil() {
@@ -335,6 +344,20 @@
     }
 
     // CATÁLOGO DE MATERIAIS
+    function alternarVisibilidadeCatalogo() {
+      catalogoAberto = !catalogoAberto;
+      const container = document.getElementById('listaCatalogo');
+      const icone = document.getElementById('iconeAccordion');
+      
+      if (catalogoAberto) {
+        container.style.display = 'block';
+        icone.innerText = '▲';
+      } else {
+        container.style.display = 'none';
+        icone.innerText = '▼';
+      }
+    }
+
     function salvarCatalogoLocalStorage() {
       localStorage.setItem('catalogo_eletrica', JSON.stringify(catalogoMateriais));
       renderizarCatalogo();
@@ -357,6 +380,9 @@
         document.getElementById('catNome').value = '';
         document.getElementById('catPreco').value = '';
       }
+      
+      // Abre a sanfona para o usuário visualizar o item recém adicionado
+      if (!catalogoAberto) alternarVisibilidadeCatalogo();
       salvarCatalogoLocalStorage();
     }
 
@@ -399,6 +425,11 @@
 
     function renderizarCatalogo() {
       const container = document.getElementById('listaCatalogo');
+      const labelAcc = document.getElementById('labelAccordionCatalogo');
+
+      // Atualiza o contador de itens no título do botão
+      labelAcc.innerText = `📂 Seus Materiais Cadastrados (${catalogoMateriais.length} itens)`;
+
       if (catalogoMateriais.length === 0) {
         container.innerHTML = '<small style="color:#94a3b8;">Nenhum material cadastrado ainda.</small>';
         return;
@@ -433,29 +464,25 @@
       });
     }
 
-    // TABELAS DA NBR 5410 (Tabela 36: Capacidade de condução de corrente em Amperes)
-    // B1 - 2 condutores carregados (Monofásico / Bifásico sem neutro)
+    // TABELAS DA NBR 5410 (Tabela 36)
     const tabelaB1_2 = [
       { mm: 1.5, amp: 17.5 }, { mm: 2.5, amp: 24.0 }, { mm: 4.0, amp: 32.0 },
       { mm: 6.0, amp: 41.0 }, { mm: 10.0, amp: 57.0 }, { mm: 16.0, amp: 76.0 },
       { mm: 25.0, amp: 101.0 }, { mm: 35.0, amp: 125.0 }, { mm: 50.0, amp: 151.0 }
     ];
 
-    // B1 - 3 condutores carregados (Trifásico / Bifásico com neutro)
     const tabelaB1_3 = [
       { mm: 1.5, amp: 15.5 }, { mm: 2.5, amp: 21.0 }, { mm: 4.0, amp: 28.0 },
       { mm: 6.0, amp: 36.0 }, { mm: 10.0, amp: 50.0 }, { mm: 16.0, amp: 68.0 },
       { mm: 25.0, amp: 89.0 }, { mm: 35.0, amp: 110.0 }, { mm: 50.0, amp: 134.0 }
     ];
 
-    // B2 - 2 condutores carregados (Aparente)
     const tabelaB2_2 = [
       { mm: 1.5, amp: 16.5 }, { mm: 2.5, amp: 23.0 }, { mm: 4.0, amp: 30.0 },
       { mm: 6.0, amp: 38.0 }, { mm: 10.0, amp: 52.0 }, { mm: 16.0, amp: 69.0 },
       { mm: 25.0, amp: 90.0 }, { mm: 35.0, amp: 111.0 }, { mm: 50.0, amp: 133.0 }
     ];
 
-    // B2 - 3 condutores carregados (Aparente)
     const tabelaB2_3 = [
       { mm: 1.5, amp: 14.5 }, { mm: 2.5, amp: 19.5 }, { mm: 4.0, amp: 26.0 },
       { mm: 6.0, amp: 34.0 }, { mm: 10.0, amp: 46.0 }, { mm: 16.0, amp: 61.0 },
@@ -474,28 +501,22 @@
 
       if (!w || w <= 0) { alert('Por favor, informe a potência em Watts.'); return; }
 
-      // 1. Corrente nominal do circuito Ib = P / V
       const ib = w / v;
 
-      // 2. Fator de Correção de Agrupamento (FCA)
       let fca = 1.0;
       if (fcaNum === 2) fca = 0.80;
       if (fcaNum === 3) fca = 0.70;
       if (fcaNum >= 4) fca = 0.65;
 
-      // Corrente corrigida exigida para o cabo Iz' = Ib / FCA
       const izRequerida = ib / fca;
 
-      // 3. Seleção da Tabela NBR 5410
       let tabela = tabelaB1_2;
       if (metodo === 'B1' && condutores === '3') tabela = tabelaB1_3;
       if (metodo === 'B2' && condutores === '2') tabela = tabelaB2_2;
       if (metodo === 'B2' && condutores === '3') tabela = tabelaB2_3;
 
-      // 4. Seleção do cabo por capacidade de corrente
       let caboSel = tabela.find(c => c.amp >= izRequerida);
 
-      // 5. Aplicação da bitola mínima obrigatória pela NBR 5410
       let bitolaMinimaNorma = (tipoCircuito === 'tomada') ? 2.5 : 1.5;
       let ajustadoPorNorma = false;
 
@@ -504,10 +525,8 @@
         ajustadoPorNorma = true;
       }
 
-      // 6. Seleção do Disjuntor Comercial DIN
       let disjuntorSel = disjuntoresComerciais.find(d => d >= ib);
 
-      // Atualização dos Resultados na Tela
       document.getElementById('outCorrente').innerText = ib.toFixed(2);
       document.getElementById('outCorrenteCorrigida').innerText = izRequerida.toFixed(2);
       document.getElementById('outMetodo').innerText = `${metodo === 'B1' ? 'Embutido (B1)' : 'Aparente (B2)'} - ${condutores} cond. carregados (FCA: ${fca.toFixed(2)})`;
