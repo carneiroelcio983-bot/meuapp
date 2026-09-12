@@ -14,8 +14,10 @@
     .card h3 { margin-top: 0; color: #38bdf8; font-size: 1.1rem; }
     label { font-size: 0.85rem; color: #94a3b8; display: block; margin-top: 10px; }
     input, select, button { width: 100%; padding: 12px; margin-top: 4px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #fff; font-size: 1rem; }
-    button { background: #facc15; color: #0f172a; font-weight: bold; border: none; cursor: pointer; margin-top: 16px; }
-    button:active { background: #eab308; }
+    .btn-group { display: flex; gap: 8px; margin-top: 16px; }
+    .btn-main { background: #facc15; color: #0f172a; font-weight: bold; border: none; cursor: pointer; flex: 2; }
+    .btn-clear { background: #334155; color: #94a3b8; font-weight: normal; border: 1px solid #475569; cursor: pointer; flex: 1; }
+    button:active { opacity: 0.8; }
     .res-box { background: #0f172a; border-left: 4px solid #facc15; padding: 10px; margin-top: 15px; border-radius: 0 6px 6px 0; }
     .res-box p { margin: 5px 0; font-size: 0.95rem; }
     .res-box strong { color: #38bdf8; }
@@ -27,7 +29,7 @@
 
   <h2>⚡ Ajudante do Eletricista</h2>
 
-  <!-- CALCULADORA 1: NBR 5410 COM SELEÇÃO DE MÉTODO -->
+  <!-- CALCULADORA 1: NBR 5410 -->
   <div class="card">
     <h3>1. Dimensionar Cabo e Disjuntor (NBR 5410)</h3>
     
@@ -47,7 +49,10 @@
     <label>Potência Total dos Equipamentos (Watts):</label>
     <input type="number" id="nbrPotencia" placeholder="Ex: 5500 (Chuveiro), 1500 (Tomadas)">
 
-    <button onclick="calcularNBR5410()">Calcular Condutor e Disjuntor</button>
+    <div class="btn-group">
+      <button class="btn-main" onclick="calcularNBR5410()">Calcular</button>
+      <button class="btn-clear" onclick="limparNBR5410()">🧹 Limpar</button>
+    </div>
 
     <div class="res-box" id="resNBR" style="display:none;">
       <p>Corrente Calculada: <strong id="outCorrente">-</strong> A</p>
@@ -87,7 +92,10 @@
       <option value="50.0">50.0 mm²</option>
     </select>
 
-    <button onclick="calcularQuedaTensao()">Calcular Queda de Tensão</button>
+    <div class="btn-group">
+      <button class="btn-main" onclick="calcularQuedaTensao()">Calcular Queda</button>
+      <button class="btn-clear" onclick="limparQuedaTensao()">🧹 Limpar</button>
+    </div>
 
     <div class="res-box" id="resQueda" style="display:none;">
       <p>Queda Estimada: <strong id="outQuedaVolts">-</strong> V (<strong id="outQuedaPerc">-</strong>%)</p>
@@ -103,7 +111,11 @@
     <input type="number" id="ohmV" placeholder="Ex: 220">
     <label>Corrente (A):</label>
     <input type="number" id="ohmA" placeholder="Ex: 10">
-    <button onclick="calcularOhm()">Calcular Potência (W)</button>
+
+    <div class="btn-group">
+      <button class="btn-main" onclick="calcularOhm()">Calcular W</button>
+      <button class="btn-clear" onclick="limparOhm()">🧹 Limpar</button>
+    </div>
     
     <div class="res-box" id="resOhm" style="display:none;">
       <p>Potência Total: <strong id="outOhmW">-</strong> Watts</p>
@@ -111,7 +123,6 @@
   </div>
 
   <script>
-    // Tabelas NBR 5410 (Capacidade de condução)
     const tabelaB1 = [
       { mm: 1.5, amp: 17.5 }, { mm: 2.5, amp: 24.0 }, { mm: 4.0, amp: 32.0 },
       { mm: 6.0, amp: 41.0 }, { mm: 10.0, amp: 57.0 }, { mm: 16.0, amp: 76.0 },
@@ -126,6 +137,7 @@
 
     const disjuntoresComerciais = [10, 16, 20, 25, 32, 40, 50, 63, 70, 80, 100];
 
+    // 1. DIMENSIONAMENTO
     function calcularNBR5410() {
       const metodo = document.getElementById('nbrMetodo').value;
       const v = parseFloat(document.getElementById('nbrTensao').value);
@@ -142,10 +154,9 @@
 
       document.getElementById('outCorrente').innerText = corrente.toFixed(2);
       document.getElementById('outMetodo').innerText = nomeMetodo;
-      
       document.getElementById('outCabo').innerText = caboSel 
         ? `${caboSel.mm} mm² (suporta até ${caboSel.amp}A)` 
-        : 'Acima de 50mm² (Necessita projeto especial)';
+        : 'Acima de 50mm² (Projeto especial)';
 
       document.getElementById('outDisjuntor').innerText = disjuntorSel 
         ? `${disjuntorSel} A (DIN)` 
@@ -154,7 +165,12 @@
       document.getElementById('resNBR').style.display = 'block';
     }
 
-    // Cálculo de Queda de Tensão pela resistividade do cobre (0.0178 ohm.mm²/m)
+    function limparNBR5410() {
+      document.getElementById('nbrPotencia').value = '';
+      document.getElementById('resNBR').style.display = 'none';
+    }
+
+    // 2. QUEDA DE TENSÃO
     function calcularQuedaTensao() {
       const v = parseFloat(document.getElementById('qtTensao').value);
       const i = parseFloat(document.getElementById('qtCorrente').value);
@@ -163,9 +179,7 @@
 
       if (!i || !L) { alert('Preencha a corrente e a distância.'); return; }
 
-      // Fórmula Monofásica/Bifásica: DeltaV = (2 * rho * L * I) / S
-      // rho (cobre) = 0.0178
-      const rho = 0.0178;
+      const rho = 0.0178; // resistividade cobre
       const quedaVolts = (2 * rho * L * i) / S;
       const quedaPerc = (quedaVolts / v) * 100;
 
@@ -183,12 +197,11 @@
         statusEl.innerText = 'FORA DA NORMA (> 4%)';
         statusEl.className = 'alert-danger';
 
-        // Busca cabo maior para atender o limite de 4%
         const cabosDisponiveis = [1.5, 2.5, 4.0, 6.0, 10.0, 16.0, 25.0, 35.0, 50.0];
         let caboIdeal = cabosDisponiveis.find(c => ((2 * rho * L * i) / c) / v * 100 <= 4.0);
 
         if (caboIdeal) {
-          sugestaoEl.innerText = `💡 Recomendado aumentar o cabo para ${caboIdeal} mm² para conter a queda em menos de 4%.`;
+          sugestaoEl.innerText = `💡 Recomendado aumentar para o cabo de ${caboIdeal} mm² para manter a queda abaixo de 4%.`;
         } else {
           sugestaoEl.innerText = '💡 Distância muito longa. Necessário reavaliar a tensão ou usar cabo acima de 50 mm².';
         }
@@ -197,6 +210,13 @@
       document.getElementById('resQueda').style.display = 'block';
     }
 
+    function limparQuedaTensao() {
+      document.getElementById('qtCorrente').value = '';
+      document.getElementById('qtDistancia').value = '';
+      document.getElementById('resQueda').style.display = 'none';
+    }
+
+    // 3. LEI DE OHM
     function calcularOhm() {
       const v = parseFloat(document.getElementById('ohmV').value);
       const i = parseFloat(document.getElementById('ohmA').value);
@@ -204,6 +224,12 @@
         document.getElementById('outOhmW').innerText = (v * i).toFixed(0);
         document.getElementById('resOhm').style.display = 'block';
       }
+    }
+
+    function limparOhm() {
+      document.getElementById('ohmV').value = '';
+      document.getElementById('ohmA').value = '';
+      document.getElementById('resOhm').style.display = 'none';
     }
 
     if ('serviceWorker' in navigator) {
