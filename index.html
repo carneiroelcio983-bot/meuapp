@@ -6,6 +6,8 @@
   <title>Ajudante do Eletricista</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1e293b">
+  <!-- Biblioteca jsPDF para geração de PDF localmente -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     * { box-sizing: border-box; }
     body { font-family: system-ui, -apple-system, sans-serif; padding: 16px; background: #0f172a; color: #f8fafc; margin: 0; }
@@ -17,12 +19,20 @@
     .btn-group { display: flex; gap: 8px; margin-top: 16px; }
     .btn-main { background: #facc15; color: #0f172a; font-weight: bold; border: none; cursor: pointer; flex: 2; }
     .btn-clear { background: #334155; color: #94a3b8; font-weight: normal; border: 1px solid #475569; cursor: pointer; flex: 1; }
+    .btn-add { background: #0284c7; color: #fff; font-weight: bold; border: none; cursor: pointer; margin-top: 10px; }
+    .btn-pdf { background: #22c55e; color: #0f172a; font-weight: bold; border: none; cursor: pointer; margin-top: 16px; }
     button:active { opacity: 0.8; }
     .res-box { background: #0f172a; border-left: 4px solid #facc15; padding: 10px; margin-top: 15px; border-radius: 0 6px 6px 0; }
     .res-box p { margin: 5px 0; font-size: 0.95rem; }
     .res-box strong { color: #38bdf8; }
     .alert-ok { color: #4ade80 !important; font-weight: bold; }
     .alert-danger { color: #f87171 !important; font-weight: bold; }
+    .item-row { display: flex; gap: 6px; margin-top: 8px; align-items: center; }
+    .item-row input { margin-top: 0; }
+    .item-desc { flex: 3; }
+    .item-qtd { flex: 1; }
+    .item-val { flex: 2; }
+    .btn-del { width: 40px; background: #ef4444; color: #fff; padding: 12px 0; margin-top: 0; border: none; font-weight: bold; border-radius: 6px; }
   </style>
 </head>
 <body>
@@ -32,20 +42,17 @@
   <!-- CALCULADORA 1: NBR 5410 -->
   <div class="card">
     <h3>1. Dimensionar Cabo e Disjuntor (NBR 5410)</h3>
-    
     <label>Tipo de Instalação / Eletroduto:</label>
     <select id="nbrMetodo">
       <option value="B1">Embutido na Parede / Alvenaria (Método B1)</option>
       <option value="B2">Aparente / Exterior na Parede (Método B2)</option>
     </select>
-
     <label>Tensão da Rede (Volts):</label>
     <select id="nbrTensao">
       <option value="127">127 V (Monofásico)</option>
       <option value="220">220 V (Bifásico / Monofásico)</option>
       <option value="380">380 V (Trifásico)</option>
     </select>
-
     <label>Potência Total dos Equipamentos (Watts):</label>
     <input type="number" id="nbrPotencia" placeholder="Ex: 5500 (Chuveiro), 1500 (Tomadas)">
 
@@ -62,23 +69,19 @@
     </div>
   </div>
 
-  <!-- CALCULADORA 2: QUEDA DE TENSÃO POR DISTÂNCIA -->
+  <!-- CALCULADORA 2: QUEDA DE TENSÃO -->
   <div class="card">
     <h3>2. Queda de Tensão (Distância do Cabo)</h3>
-    
     <label>Tensão da Rede (V):</label>
     <select id="qtTensao">
       <option value="127">127 V (Monofásico)</option>
       <option value="220">220 V (Bifásico / Monofásico)</option>
       <option value="380">380 V (Trifásico)</option>
     </select>
-
     <label>Corrente do Circuito (Ampères):</label>
     <input type="number" id="qtCorrente" placeholder="Ex: 25">
-
     <label>Distância em Metros (Um sentido):</label>
     <input type="number" id="qtDistancia" placeholder="Ex: 35">
-
     <label>Seção do Cabo Atual (mm²):</label>
     <select id="qtCabo">
       <option value="1.5">1.5 mm²</option>
@@ -119,6 +122,37 @@
     
     <div class="res-box" id="resOhm" style="display:none;">
       <p>Potência Total: <strong id="outOhmW">-</strong> Watts</p>
+    </div>
+  </div>
+
+  <!-- MÓDULO 4: GERADOR DE ORÇAMENTO / OS -->
+  <div class="card">
+    <h3>4. Gerador de Orçamento / Ordem de Serviço</h3>
+    
+    <label>Nome do Eletricista / Empresa:</label>
+    <input type="text" id="orcEmpresa" placeholder="Ex: EletroServ Elétrica">
+
+    <label>Nome do Cliente:</label>
+    <input type="text" id="orcCliente" placeholder="Ex: João da Silva">
+
+    <label>Telefone / WhatsApp do Cliente:</label>
+    <input type="text" id="orcFone" placeholder="Ex: (11) 99999-8888">
+
+    <label style="margin-top:15px; font-weight:bold; color:#facc15;">Itens e Serviços:</label>
+    <div id="containerItens">
+      <div class="item-row">
+        <input type="text" class="item-desc" placeholder="Descrição (ex: Troca de Chuveiro)">
+        <input type="number" class="item-qtd" placeholder="Qtd" value="1">
+        <input type="number" class="item-val" placeholder="Valor (R$)">
+        <button type="button" class="btn-del" onclick="removerItem(this)">✕</button>
+      </div>
+    </div>
+
+    <button type="button" class="btn-add" onclick="adicionarItem()">+ Adicionar Item</button>
+
+    <div class="btn-group">
+      <button type="button" class="btn-pdf" onclick="gerarPDFOrçamento()">📄 Gerar PDF do Orçamento</button>
+      <button type="button" class="btn-clear" style="margin-top:16px;" onclick="limparOrcamento()">🧹 Limpar</button>
     </div>
   </div>
 
@@ -179,7 +213,7 @@
 
       if (!i || !L) { alert('Preencha a corrente e a distância.'); return; }
 
-      const rho = 0.0178; // resistividade cobre
+      const rho = 0.0178;
       const quedaVolts = (2 * rho * L * i) / S;
       const quedaPerc = (quedaVolts / v) * 100;
 
@@ -230,6 +264,130 @@
       document.getElementById('ohmV').value = '';
       document.getElementById('ohmA').value = '';
       document.getElementById('resOhm').style.display = 'none';
+    }
+
+    // 4. FUNÇÕES DO GERADOR DE ORÇAMENTO
+    function adicionarItem() {
+      const container = document.getElementById('containerItens');
+      const novaLinha = document.createElement('div');
+      novaLinha.className = 'item-row';
+      novaLinha.innerHTML = `
+        <input type="text" class="item-desc" placeholder="Descrição">
+        <input type="number" class="item-qtd" placeholder="Qtd" value="1">
+        <input type="number" class="item-val" placeholder="Valor (R$)">
+        <button type="button" class="btn-del" onclick="removerItem(this)">✕</button>
+      `;
+      container.appendChild(novaLinha);
+    }
+
+    function removerItem(btn) {
+      const container = document.getElementById('containerItens');
+      if (container.children.length > 1) {
+        btn.parentElement.remove();
+      } else {
+        alert('O orçamento deve ter pelo menos 1 item.');
+      }
+    }
+
+    function limparOrcamento() {
+      document.getElementById('orcEmpresa').value = '';
+      document.getElementById('orcCliente').value = '';
+      document.getElementById('orcFone').value = '';
+      const container = document.getElementById('containerItens');
+      container.innerHTML = `
+        <div class="item-row">
+          <input type="text" class="item-desc" placeholder="Descrição (ex: Troca de Chuveiro)">
+          <input type="number" class="item-qtd" placeholder="Qtd" value="1">
+          <input type="number" class="item-val" placeholder="Valor (R$)">
+          <button type="button" class="btn-del" onclick="removerItem(this)">✕</button>
+        </div>
+      `;
+    }
+
+    function gerarPDFOrçamento() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      const empresa = document.getElementById('orcEmpresa').value || 'Eletricista Profissional';
+      const cliente = document.getElementById('orcCliente').value || 'Cliente';
+      const fone = document.getElementById('orcFone').value || '-';
+
+      const dataAtual = new Date().toLocaleDateString('pt-BR');
+
+      // Cabeçalho PDF
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.text(empresa, 14, 20);
+
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      doc.text('ORÇAMENTO / ORDEM DE SERVIÇO', 14, 28);
+      doc.text(`Data: ${dataAtual}`, 150, 28);
+
+      doc.line(14, 32, 196, 32);
+
+      // Dados Cliente
+      doc.setFont('helvetica', 'bold');
+      doc.text('Cliente:', 14, 40);
+      doc.setFont('helvetica', 'normal');
+      doc.text(cliente, 32, 40);
+
+      doc.setFont('helvetica', 'bold');
+      doc.text('Telefone:', 14, 46);
+      doc.setFont('helvetica', 'normal');
+      doc.text(fone, 35, 46);
+
+      doc.line(14, 50, 196, 50);
+
+      // Tabela de Itens
+      doc.setFont('helvetica', 'bold');
+      doc.text('Descrição', 14, 58);
+      doc.text('Qtd', 130, 58);
+      doc.text('Unit. (R$)', 150, 58);
+      doc.text('Total (R$)', 175, 58);
+
+      doc.line(14, 60, 196, 60);
+
+      doc.setFont('helvetica', 'normal');
+      const descs = document.querySelectorAll('.item-desc');
+      const qtds = document.querySelectorAll('.item-qtd');
+      const vals = document.querySelectorAll('.item-val');
+
+      let y = 68;
+      let valorTotalGeral = 0;
+
+      for (let i = 0; i < descs.length; i++) {
+        const desc = descs[i].value || 'Item sem descrição';
+        const qtd = parseFloat(qtds[i].value) || 0;
+        const val = parseFloat(vals[i].value) || 0;
+        const totalItem = qtd * val;
+        valorTotalGeral += totalItem;
+
+        doc.text(desc.substring(0, 45), 14, y);
+        doc.text(qtd.toString(), 130, y);
+        doc.text(val.toFixed(2), 150, y);
+        doc.text(totalItem.toFixed(2), 175, y);
+
+        y += 8;
+        if (y > 270) { doc.addPage(); y = 20; }
+      }
+
+      doc.line(14, y, 196, y);
+
+      // Total Geral
+      y += 10;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text(`VALOR TOTAL: R$ ${valorTotalGeral.toFixed(2)}`, 130, y);
+
+      // Rodapé / Validade
+      y += 20;
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'italic');
+      doc.text('Este orçamento tem validade de 15 dias. Serviços executados de acordo com a NBR 5410.', 14, y);
+
+      // Salva o PDF no dispositivo
+      doc.save(`Orcamento_${cliente.replace(/\s+/g, '_')}.pdf`);
     }
 
     if ('serviceWorker' in navigator) {
