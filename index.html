@@ -216,6 +216,12 @@
   <div class="card">
     <h3>5. Gerador de Orçamento / Ordem de Serviço</h3>
 
+    <label>Tipo de Documento:</label>
+    <select id="tipoOrcamento">
+      <option value="completo">Orçamento Final Completo (Com Valores e Total)</option>
+      <option value="preliminar">Orçamento Preliminar / Lista de Materiais (Sem Valores)</option>
+    </select>
+
     <label>Nome do Cliente:</label>
     <input type="text" id="orcCliente" placeholder="Ex: João da Silva">
 
@@ -572,6 +578,9 @@
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
 
+      const tipoOrcamento = document.getElementById('tipoOrcamento').value;
+      const ePreliminar = (tipoOrcamento === 'preliminar');
+
       const empresa = perfilProfissional.nome || 'Eletricista Profissional';
       const documento = perfilProfissional.documento ? `CPF/CNPJ: ${perfilProfissional.documento}` : '';
       const registro = perfilProfissional.registro ? `Registro: ${perfilProfissional.registro}` : '';
@@ -588,7 +597,6 @@
       if (perfilProfissional.logoBase64) {
         try {
           doc.addImage(perfilProfissional.logoBase64, 'JPEG', 14, 12, 30, 30);
-          // Ajusta a posição do texto da empresa se tiver logo
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(16);
           doc.text(empresa, 48, startY);
@@ -601,14 +609,12 @@
           startY += 25;
         } catch(e) {
           console.log("Erro ao carregar imagem no PDF:", e);
-          // Fallback sem logo em caso de erro no formato da imagem
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(16);
           doc.text(empresa, 14, startY);
           startY += 10;
         }
       } else {
-        // Cabeçalho Padrão sem imagem
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(16);
         doc.text(empresa, 14, startY);
@@ -621,9 +627,11 @@
         startY += 20;
       }
 
+      // Título do documento
+      const tituloDoc = ePreliminar ? 'ORÇAMENTO PRELIMINAR / LISTA DE MATERIAIS' : 'ORÇAMENTO / ORDEM DE SERVIÇO';
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
-      doc.text('ORÇAMENTO / ORDEM DE SERVIÇO', 14, startY);
+      doc.text(tituloDoc, 14, startY);
       doc.setFont('helvetica', 'normal');
       doc.text(`Data: ${dataAtual}`, 150, startY);
 
@@ -646,13 +654,16 @@
       startY += 4;
       doc.line(14, startY, 196, startY);
 
-      // Tabela de Itens
+      // Tabela de Itens (Cabecalhos dinâmicos)
       startY += 8;
       doc.setFont('helvetica', 'bold');
-      doc.text('Descrição', 14, startY);
+      doc.text('Descrição do Item / Material', 14, startY);
       doc.text('Qtd', 130, startY);
-      doc.text('Unit. (R$)', 150, startY);
-      doc.text('Total (R$)', 175, startY);
+      
+      if (!ePreliminar) {
+        doc.text('Unit. (R$)', 150, startY);
+        doc.text('Total (R$)', 175, startY);
+      }
 
       startY += 2;
       doc.line(14, startY, 196, startY);
@@ -672,10 +683,13 @@
         const totalItem = qtd * val;
         valorTotalGeral += totalItem;
 
-        doc.text(desc.substring(0, 45), 14, y);
+        doc.text(desc.substring(0, ePreliminar ? 65 : 45), 14, y);
         doc.text(qtd.toString(), 130, y);
-        doc.text(val.toFixed(2), 150, y);
-        doc.text(totalItem.toFixed(2), 175, y);
+        
+        if (!ePreliminar) {
+          doc.text(val.toFixed(2), 150, y);
+          doc.text(totalItem.toFixed(2), 175, y);
+        }
 
         y += 8;
         if (y > 270) { doc.addPage(); y = 20; }
@@ -683,20 +697,28 @@
 
       doc.line(14, y, 196, y);
 
-      // Total Geral
-      y += 10;
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(13);
-      doc.text(`VALOR TOTAL: R$ ${valorTotalGeral.toFixed(2)}`, 130, y);
+      // Total Geral se for Orçamento Completo
+      if (!ePreliminar) {
+        y += 10;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(13);
+        doc.text(`VALOR TOTAL: R$ ${valorTotalGeral.toFixed(2)}`, 130, y);
+      }
 
       // Rodapé
       y += 20;
       doc.setFontSize(8);
       doc.setFont('helvetica', 'italic');
-      doc.text('Este orçamento tem validade de 15 dias. Serviços executados de acordo com as normas NBR 5410.', 14, y);
+      
+      if (ePreliminar) {
+        doc.text('Este documento apresenta a relação preliminar de materiais para a obra. Valores não inclusos.', 14, y);
+      } else {
+        doc.text('Este orçamento tem validade de 15 dias. Serviços executados de acordo com as normas NBR 5410.', 14, y);
+      }
 
-      // Salva o PDF
-      doc.save(`Orcamento_${cliente.replace(/\s+/g, '_')}.pdf`);
+      // Nome do Arquivo
+      const prefixoArq = ePreliminar ? 'ListaMateriais' : 'Orcamento';
+      doc.save(`${prefixoArq}_${cliente.replace(/\s+/g, '_')}.pdf`);
     }
 
     // Inicialização da página
