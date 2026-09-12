@@ -19,6 +19,8 @@
     .res-box { background: #0f172a; border-left: 4px solid #facc15; padding: 10px; margin-top: 15px; border-radius: 0 6px 6px 0; }
     .res-box p { margin: 5px 0; font-size: 0.95rem; }
     .res-box strong { color: #38bdf8; }
+    .alert-ok { color: #4ade80 !important; font-weight: bold; }
+    .alert-danger { color: #f87171 !important; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -55,9 +57,48 @@
     </div>
   </div>
 
-  <!-- CALCULADORA 2: LEI DE OHM -->
+  <!-- CALCULADORA 2: QUEDA DE TENSÃO POR DISTÂNCIA -->
   <div class="card">
-    <h3>2. Calculadora Rápida (Lei de Ohm)</h3>
+    <h3>2. Queda de Tensão (Distância do Cabo)</h3>
+    
+    <label>Tensão da Rede (V):</label>
+    <select id="qtTensao">
+      <option value="127">127 V (Monofásico)</option>
+      <option value="220">220 V (Bifásico / Monofásico)</option>
+      <option value="380">380 V (Trifásico)</option>
+    </select>
+
+    <label>Corrente do Circuito (Ampères):</label>
+    <input type="number" id="qtCorrente" placeholder="Ex: 25">
+
+    <label>Distância em Metros (Um sentido):</label>
+    <input type="number" id="qtDistancia" placeholder="Ex: 35">
+
+    <label>Seção do Cabo Atual (mm²):</label>
+    <select id="qtCabo">
+      <option value="1.5">1.5 mm²</option>
+      <option value="2.5">2.5 mm²</option>
+      <option value="4.0">4.0 mm²</option>
+      <option value="6.0">6.0 mm²</option>
+      <option value="10.0">10.0 mm²</option>
+      <option value="16.0">16.0 mm²</option>
+      <option value="25.0">25.0 mm²</option>
+      <option value="35.0">35.0 mm²</option>
+      <option value="50.0">50.0 mm²</option>
+    </select>
+
+    <button onclick="calcularQuedaTensao()">Calcular Queda de Tensão</button>
+
+    <div class="res-box" id="resQueda" style="display:none;">
+      <p>Queda Estimada: <strong id="outQuedaVolts">-</strong> V (<strong id="outQuedaPerc">-</strong>%)</p>
+      <p>Status NBR 5410: <span id="outStatusQueda">-</span></p>
+      <p id="outSugestaoCabo" style="margin-top:5px; font-size:0.9rem; color:#facc15;"></p>
+    </div>
+  </div>
+
+  <!-- CALCULADORA 3: LEI DE OHM -->
+  <div class="card">
+    <h3>3. Calculadora Rápida (Lei de Ohm)</h3>
     <label>Tensão (V):</label>
     <input type="number" id="ohmV" placeholder="Ex: 220">
     <label>Corrente (A):</label>
@@ -70,31 +111,17 @@
   </div>
 
   <script>
-    // Tabelas NBR 5410 para condutores de cobre com isolação PVC (2 condutores carregados)
-    // Método B1: Eletroduto de seção circular embutido em alvenaria
+    // Tabelas NBR 5410 (Capacidade de condução)
     const tabelaB1 = [
-      { mm: 1.5, amp: 17.5 },
-      { mm: 2.5, amp: 24.0 },
-      { mm: 4.0, amp: 32.0 },
-      { mm: 6.0, amp: 41.0 },
-      { mm: 10.0, amp: 57.0 },
-      { mm: 16.0, amp: 76.0 },
-      { mm: 25.0, amp: 101.0 },
-      { mm: 35.0, amp: 125.0 },
-      { mm: 50.0, amp: 151.0 }
+      { mm: 1.5, amp: 17.5 }, { mm: 2.5, amp: 24.0 }, { mm: 4.0, amp: 32.0 },
+      { mm: 6.0, amp: 41.0 }, { mm: 10.0, amp: 57.0 }, { mm: 16.0, amp: 76.0 },
+      { mm: 25.0, amp: 101.0 }, { mm: 35.0, amp: 125.0 }, { mm: 50.0, amp: 151.0 }
     ];
 
-    // Método B2: Eletroduto de seção circular sobre parede de madeira/alvenaria (Aparente/Exterior)
     const tabelaB2 = [
-      { mm: 1.5, amp: 16.5 },
-      { mm: 2.5, amp: 23.0 },
-      { mm: 4.0, amp: 30.0 },
-      { mm: 6.0, amp: 38.0 },
-      { mm: 10.0, amp: 52.0 },
-      { mm: 16.0, amp: 69.0 },
-      { mm: 25.0, amp: 90.0 },
-      { mm: 35.0, amp: 111.0 },
-      { mm: 50.0, amp: 133.0 }
+      { mm: 1.5, amp: 16.5 }, { mm: 2.5, amp: 23.0 }, { mm: 4.0, amp: 30.0 },
+      { mm: 6.0, amp: 38.0 }, { mm: 10.0, amp: 52.0 }, { mm: 16.0, amp: 69.0 },
+      { mm: 25.0, amp: 90.0 }, { mm: 35.0, amp: 111.0 }, { mm: 50.0, amp: 133.0 }
     ];
 
     const disjuntoresComerciais = [10, 16, 20, 25, 32, 40, 50, 63, 70, 80, 100];
@@ -104,40 +131,70 @@
       const v = parseFloat(document.getElementById('nbrTensao').value);
       const w = parseFloat(document.getElementById('nbrPotencia').value);
 
-      if (!w || w <= 0) {
-        alert('Por favor, informe a potência em Watts.');
-        return;
-      }
+      if (!w || w <= 0) { alert('Por favor, informe a potência em Watts.'); return; }
 
-      // Corrente I = P / V
       const corrente = w / v;
-
-      // Seleciona a tabela conforme o método de instalação
       const tabela = (metodo === 'B2') ? tabelaB2 : tabelaB1;
       const nomeMetodo = (metodo === 'B2') ? 'Aparente / Exterior (B2)' : 'Embutido em Parede (B1)';
 
-      // Busca o cabo adequado para a corrente
       let caboSel = tabela.find(c => c.amp >= corrente);
-      
-      // Busca o disjuntor comercial adequado
       let disjuntorSel = disjuntoresComerciais.find(d => d >= corrente);
 
       document.getElementById('outCorrente').innerText = corrente.toFixed(2);
       document.getElementById('outMetodo').innerText = nomeMetodo;
       
-      if (caboSel) {
-        document.getElementById('outCabo').innerText = `${caboSel.mm} mm² (suporta até ${caboSel.amp}A nesse método)`;
-      } else {
-        document.getElementById('outCabo').innerText = 'Acima de 50mm² (Necessita projeto especial)';
-      }
+      document.getElementById('outCabo').innerText = caboSel 
+        ? `${caboSel.mm} mm² (suporta até ${caboSel.amp}A)` 
+        : 'Acima de 50mm² (Necessita projeto especial)';
 
-      if (disjuntorSel) {
-        document.getElementById('outDisjuntor').innerText = `${disjuntorSel} A (DIN)`;
-      } else {
-        document.getElementById('outDisjuntor').innerText = 'Acima de 100A';
-      }
+      document.getElementById('outDisjuntor').innerText = disjuntorSel 
+        ? `${disjuntorSel} A (DIN)` 
+        : 'Acima de 100A';
 
       document.getElementById('resNBR').style.display = 'block';
+    }
+
+    // Cálculo de Queda de Tensão pela resistividade do cobre (0.0178 ohm.mm²/m)
+    function calcularQuedaTensao() {
+      const v = parseFloat(document.getElementById('qtTensao').value);
+      const i = parseFloat(document.getElementById('qtCorrente').value);
+      const L = parseFloat(document.getElementById('qtDistancia').value);
+      const S = parseFloat(document.getElementById('qtCabo').value);
+
+      if (!i || !L) { alert('Preencha a corrente e a distância.'); return; }
+
+      // Fórmula Monofásica/Bifásica: DeltaV = (2 * rho * L * I) / S
+      // rho (cobre) = 0.0178
+      const rho = 0.0178;
+      const quedaVolts = (2 * rho * L * i) / S;
+      const quedaPerc = (quedaVolts / v) * 100;
+
+      document.getElementById('outQuedaVolts').innerText = quedaVolts.toFixed(2);
+      document.getElementById('outQuedaPerc').innerText = quedaPerc.toFixed(2);
+
+      const statusEl = document.getElementById('outStatusQueda');
+      const sugestaoEl = document.getElementById('outSugestaoCabo');
+
+      if (quedaPerc <= 4.0) {
+        statusEl.innerText = 'DENTRO DA NORMA (≤ 4%)';
+        statusEl.className = 'alert-ok';
+        sugestaoEl.innerText = '';
+      } else {
+        statusEl.innerText = 'FORA DA NORMA (> 4%)';
+        statusEl.className = 'alert-danger';
+
+        // Busca cabo maior para atender o limite de 4%
+        const cabosDisponiveis = [1.5, 2.5, 4.0, 6.0, 10.0, 16.0, 25.0, 35.0, 50.0];
+        let caboIdeal = cabosDisponiveis.find(c => ((2 * rho * L * i) / c) / v * 100 <= 4.0);
+
+        if (caboIdeal) {
+          sugestaoEl.innerText = `💡 Recomendado aumentar o cabo para ${caboIdeal} mm² para conter a queda em menos de 4%.`;
+        } else {
+          sugestaoEl.innerText = '💡 Distância muito longa. Necessário reavaliar a tensão ou usar cabo acima de 50 mm².';
+        }
+      }
+
+      document.getElementById('resQueda').style.display = 'block';
     }
 
     function calcularOhm() {
@@ -149,7 +206,6 @@
       }
     }
 
-    // Registro do Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js');
     }
