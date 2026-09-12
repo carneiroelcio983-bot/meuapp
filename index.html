@@ -219,7 +219,7 @@
     <label>Tipo de Documento:</label>
     <select id="tipoOrcamento">
       <option value="completo">Orçamento Final Completo (Com Valores e Total)</option>
-      <option value="preliminar">Orçamento Preliminar / Lista de Materiais (Sem Valores)</option>
+      <option value="preliminar">Orçamento Preliminar / Lista de Materiais (Sem Valores dos Materiais)</option>
     </select>
 
     <label>Nome do Cliente:</label>
@@ -228,7 +228,10 @@
     <label>Telefone / WhatsApp do Cliente:</label>
     <input type="text" id="orcFone" placeholder="Ex: (11) 99999-8888">
 
-    <label style="margin-top:15px; font-weight:bold; color:#facc15;">Itens e Serviços:</label>
+    <label style="color:#38bdf8; font-weight:bold;">Valor da Mão de Obra / Execução (R$):</label>
+    <input type="number" id="orcMaoDeObra" step="0.01" placeholder="Ex: 350.00 (Opcional se inserido nos itens)">
+
+    <label style="margin-top:15px; font-weight:bold; color:#facc15;">Itens e Materiais:</label>
     <div id="containerItens">
       <!-- Linhas de itens inseridas via JS -->
     </div>
@@ -244,12 +247,7 @@
   <script>
     // ESTADO E LOCALSTORAGE
     let perfilProfissional = JSON.parse(localStorage.getItem('perfil_eletricista')) || {
-      nome: '',
-      documento: '',
-      registro: '',
-      fone: '',
-      contatoExtra: '',
-      logoBase64: ''
+      nome: '', documento: '', registro: '', fone: '', contatoExtra: '', logoBase64: ''
     };
 
     let catalogoMateriais = JSON.parse(localStorage.getItem('catalogo_eletrica')) || [
@@ -570,6 +568,7 @@
     function limparOrcamento() {
       document.getElementById('orcCliente').value = '';
       document.getElementById('orcFone').value = '';
+      document.getElementById('orcMaoDeObra').value = '';
       document.getElementById('containerItens').innerHTML = '';
       adicionarItem();
     }
@@ -589,6 +588,7 @@
 
       const cliente = document.getElementById('orcCliente').value || 'Cliente';
       const foneCliente = document.getElementById('orcFone').value || '-';
+      const valMaoDeObra = parseFloat(document.getElementById('orcMaoDeObra').value) || 0;
       const dataAtual = new Date().toLocaleDateString('pt-BR');
 
       let startY = 20;
@@ -608,7 +608,6 @@
           if (foneEmpresa || extraEmpresa) { doc.text(`${foneEmpresa}  ${extraEmpresa}`, 48, subY); }
           startY += 25;
         } catch(e) {
-          console.log("Erro ao carregar imagem no PDF:", e);
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(16);
           doc.text(empresa, 14, startY);
@@ -654,7 +653,7 @@
       startY += 4;
       doc.line(14, startY, 196, startY);
 
-      // Tabela de Itens (Cabecalhos dinâmicos)
+      // Tabela de Itens (Cabeçalhos)
       startY += 8;
       doc.setFont('helvetica', 'bold');
       doc.text('Descrição do Item / Material', 14, startY);
@@ -674,14 +673,14 @@
       const vals = document.querySelectorAll('.item-val');
 
       let y = startY + 8;
-      let valorTotalGeral = 0;
+      let totalMateriais = 0;
 
       for (let i = 0; i < descs.length; i++) {
         const desc = descs[i].value || 'Item sem descrição';
         const qtd = parseFloat(qtds[i].value) || 0;
         const val = parseFloat(vals[i].value) || 0;
         const totalItem = qtd * val;
-        valorTotalGeral += totalItem;
+        totalMateriais += totalItem;
 
         doc.text(desc.substring(0, ePreliminar ? 65 : 45), 14, y);
         doc.text(qtd.toString(), 130, y);
@@ -692,17 +691,29 @@
         }
 
         y += 8;
-        if (y > 270) { doc.addPage(); y = 20; }
+        if (y > 260) { doc.addPage(); y = 20; }
       }
 
       doc.line(14, y, 196, y);
 
-      // Total Geral se for Orçamento Completo
-      if (!ePreliminar) {
-        y += 10;
+      // Mão de Obra e Totais no PDF
+      y += 8;
+      if (valMaoDeObra > 0) {
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(13);
-        doc.text(`VALOR TOTAL: R$ ${valorTotalGeral.toFixed(2)}`, 130, y);
+        doc.text('MÃO DE OBRA / EXECUÇÃO DO SERVIÇO:', 14, y);
+        doc.text(`R$ ${valMaoDeObra.toFixed(2)}`, 175, y);
+        y += 8;
+      }
+
+      if (!ePreliminar) {
+        const valorGeral = totalMateriais + valMaoDeObra;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.text(`VALOR TOTAL GERAL: R$ ${valorGeral.toFixed(2)}`, 125, y);
+      } else if (valMaoDeObra > 0) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.text(`TOTAL EXECUÇÃO (MÃO DE OBRA): R$ ${valMaoDeObra.toFixed(2)}`, 110, y);
       }
 
       // Rodapé
@@ -711,7 +722,7 @@
       doc.setFont('helvetica', 'italic');
       
       if (ePreliminar) {
-        doc.text('Este documento apresenta a relação preliminar de materiais para a obra. Valores não inclusos.', 14, y);
+        doc.text('Este documento apresenta a relação de materiais para a obra. Mão de obra inclusa se especificada.', 14, y);
       } else {
         doc.text('Este orçamento tem validade de 15 dias. Serviços executados de acordo com as normas NBR 5410.', 14, y);
       }
