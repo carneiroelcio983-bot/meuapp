@@ -104,20 +104,43 @@
     </div>
   </div>
 
-  <!-- CALCULADORA 1: NBR 5410 -->
+  <!-- CALCULADORA 1: NBR 5410 COMPLETA -->
   <div class="card">
     <h3>1. Dimensionar Cabo e Disjuntor (NBR 5410)</h3>
+    
+    <label>Uso do Circuito (Mínimo Normativo):</label>
+    <select id="nbrTipoCircuito">
+      <option value="tomada">Tomada / Força (Mínimo 2.5 mm²)</option>
+      <option value="iluminacao">Iluminação (Mínimo 1.5 mm²)</option>
+    </select>
+
     <label>Tipo de Instalação / Eletroduto:</label>
     <select id="nbrMetodo">
       <option value="B1">Embutido na Parede / Alvenaria (Método B1)</option>
       <option value="B2">Aparente / Exterior na Parede (Método B2)</option>
     </select>
+
+    <label>Esquema de Alimentação / Condutores Carregados:</label>
+    <select id="nbrCondutores">
+      <option value="2">2 Condutores Carregados (Monofásico F+N ou Bifásico F+F)</option>
+      <option value="3">3 Condutores Carregados (Trifásico F+F+F ou Bifásico c/ Neutro)</option>
+    </select>
+
+    <label>Circuitos Agrupados no mesmo Eletroduto (FCA):</label>
+    <select id="nbrAgrupamento">
+      <option value="1">1 Circuito (Fator 1.00 - 100%)</option>
+      <option value="2">2 Circuitos (Fator 0.80 - 80%)</option>
+      <option value="3">3 Circuitos (Fator 0.70 - 70%)</option>
+      <option value="4">4 Circuitos (Fator 0.65 - 65%)</option>
+    </select>
+
     <label>Tensão da Rede (Volts):</label>
     <select id="nbrTensao">
-      <option value="127">127 V (Monofásico)</option>
-      <option value="220">220 V (Bifásico / Monofásico)</option>
-      <option value="380">380 V (Trifásico)</option>
+      <option value="127">127 V</option>
+      <option value="220">220 V</option>
+      <option value="380">380 V</option>
     </select>
+
     <label>Potência Total dos Equipamentos (Watts):</label>
     <input type="number" id="nbrPotencia" placeholder="Ex: 5500 (Chuveiro), 1500 (Tomadas)">
 
@@ -127,10 +150,12 @@
     </div>
 
     <div class="res-box" id="resNBR" style="display:none;">
-      <p>Corrente Calculada: <strong id="outCorrente">-</strong> A</p>
+      <p>Corrente Nominal ($I_b$): <strong id="outCorrente">-</strong> A</p>
+      <p>Corrente Corrigida pelo Agrupamento ($I_z'$): <strong id="outCorrenteCorrigida">-</strong> A</p>
       <p>Método de Instalação: <strong id="outMetodo">-</strong></p>
-      <p>Cabo Mínimo Recomendado: <strong id="outCabo">-</strong> mm²</p>
-      <p>Disjuntor Recomendado: <strong id="outDisjuntor">-</strong> A</p>
+      <p>Cabo Recomendado: <strong id="outCabo">-</strong></p>
+      <p>Disjuntor Recomendado: <strong id="outDisjuntor">-</strong> A (DIN)</p>
+      <p id="outObsNBR" style="margin-top:5px; font-size:0.85rem; color:#facc15;"></p>
     </div>
   </div>
 
@@ -408,45 +433,101 @@
       });
     }
 
-    // DIMENSIONAMENTO NBR 5410
-    const tabelaB1 = [
+    // TABELAS DA NBR 5410 (Tabela 36: Capacidade de condução de corrente em Amperes)
+    // B1 - 2 condutores carregados (Monofásico / Bifásico sem neutro)
+    const tabelaB1_2 = [
       { mm: 1.5, amp: 17.5 }, { mm: 2.5, amp: 24.0 }, { mm: 4.0, amp: 32.0 },
       { mm: 6.0, amp: 41.0 }, { mm: 10.0, amp: 57.0 }, { mm: 16.0, amp: 76.0 },
       { mm: 25.0, amp: 101.0 }, { mm: 35.0, amp: 125.0 }, { mm: 50.0, amp: 151.0 }
     ];
 
-    const tabelaB2 = [
+    // B1 - 3 condutores carregados (Trifásico / Bifásico com neutro)
+    const tabelaB1_3 = [
+      { mm: 1.5, amp: 15.5 }, { mm: 2.5, amp: 21.0 }, { mm: 4.0, amp: 28.0 },
+      { mm: 6.0, amp: 36.0 }, { mm: 10.0, amp: 50.0 }, { mm: 16.0, amp: 68.0 },
+      { mm: 25.0, amp: 89.0 }, { mm: 35.0, amp: 110.0 }, { mm: 50.0, amp: 134.0 }
+    ];
+
+    // B2 - 2 condutores carregados (Aparente)
+    const tabelaB2_2 = [
       { mm: 1.5, amp: 16.5 }, { mm: 2.5, amp: 23.0 }, { mm: 4.0, amp: 30.0 },
       { mm: 6.0, amp: 38.0 }, { mm: 10.0, amp: 52.0 }, { mm: 16.0, amp: 69.0 },
       { mm: 25.0, amp: 90.0 }, { mm: 35.0, amp: 111.0 }, { mm: 50.0, amp: 133.0 }
     ];
 
+    // B2 - 3 condutores carregados (Aparente)
+    const tabelaB2_3 = [
+      { mm: 1.5, amp: 14.5 }, { mm: 2.5, amp: 19.5 }, { mm: 4.0, amp: 26.0 },
+      { mm: 6.0, amp: 34.0 }, { mm: 10.0, amp: 46.0 }, { mm: 16.0, amp: 61.0 },
+      { mm: 25.0, amp: 80.0 }, { mm: 35.0, amp: 99.0 }, { mm: 50.0, amp: 119.0 }
+    ];
+
     const disjuntoresComerciais = [10, 16, 20, 25, 32, 40, 50, 63, 70, 80, 100];
 
     function calcularNBR5410() {
+      const tipoCircuito = document.getElementById('nbrTipoCircuito').value;
       const metodo = document.getElementById('nbrMetodo').value;
+      const condutores = document.getElementById('nbrCondutores').value;
+      const fcaNum = parseInt(document.getElementById('nbrAgrupamento').value);
       const v = parseFloat(document.getElementById('nbrTensao').value);
       const w = parseFloat(document.getElementById('nbrPotencia').value);
 
       if (!w || w <= 0) { alert('Por favor, informe a potência em Watts.'); return; }
 
-      const corrente = w / v;
-      const tabela = (metodo === 'B2') ? tabelaB2 : tabelaB1;
-      const nomeMetodo = (metodo === 'B2') ? 'Aparente / Exterior (B2)' : 'Embutido em Parede (B1)';
+      // 1. Corrente nominal do circuito Ib = P / V
+      const ib = w / v;
 
-      let caboSel = tabela.find(c => c.amp >= corrente);
-      let disjuntorSel = disjuntoresComerciais.find(d => d >= corrente);
+      // 2. Fator de Correção de Agrupamento (FCA)
+      let fca = 1.0;
+      if (fcaNum === 2) fca = 0.80;
+      if (fcaNum === 3) fca = 0.70;
+      if (fcaNum >= 4) fca = 0.65;
 
-      document.getElementById('outCorrente').innerText = corrente.toFixed(2);
-      document.getElementById('outMetodo').innerText = nomeMetodo;
-      document.getElementById('outCabo').innerText = caboSel 
-        ? `${caboSel.mm} mm² (suporta até ${caboSel.amp}A)` 
-        : 'Acima de 50mm² (Projeto especial)';
+      // Corrente corrigida exigida para o cabo Iz' = Ib / FCA
+      const izRequerida = ib / fca;
 
-      document.getElementById('outDisjuntor').innerText = disjuntorSel 
-        ? `${disjuntorSel} A (DIN)` 
-        : 'Acima de 100A';
+      // 3. Seleção da Tabela NBR 5410
+      let tabela = tabelaB1_2;
+      if (metodo === 'B1' && condutores === '3') tabela = tabelaB1_3;
+      if (metodo === 'B2' && condutores === '2') tabela = tabelaB2_2;
+      if (metodo === 'B2' && condutores === '3') tabela = tabelaB2_3;
 
+      // 4. Seleção do cabo por capacidade de corrente
+      let caboSel = tabela.find(c => c.amp >= izRequerida);
+
+      // 5. Aplicação da bitola mínima obrigatória pela NBR 5410
+      let bitolaMinimaNorma = (tipoCircuito === 'tomada') ? 2.5 : 1.5;
+      let ajustadoPorNorma = false;
+
+      if (caboSel && caboSel.mm < bitolaMinimaNorma) {
+        caboSel = tabela.find(c => c.mm >= bitolaMinimaNorma);
+        ajustadoPorNorma = true;
+      }
+
+      // 6. Seleção do Disjuntor Comercial DIN
+      let disjuntorSel = disjuntoresComerciais.find(d => d >= ib);
+
+      // Atualização dos Resultados na Tela
+      document.getElementById('outCorrente').innerText = ib.toFixed(2);
+      document.getElementById('outCorrenteCorrigida').innerText = izRequerida.toFixed(2);
+      document.getElementById('outMetodo').innerText = `${metodo === 'B1' ? 'Embutido (B1)' : 'Aparente (B2)'} - ${condutores} cond. carregados (FCA: ${fca.toFixed(2)})`;
+
+      const outCaboEl = document.getElementById('outCabo');
+      const outObsEl = document.getElementById('outObsNBR');
+
+      if (caboSel) {
+        outCaboEl.innerText = `${caboSel.mm} mm² (suporta até ${(caboSel.amp * fca).toFixed(1)}A com agrupamento)`;
+      } else {
+        outCaboEl.innerText = 'Acima de 50mm² (Necessita projeto especial)';
+      }
+
+      if (ajustadoPorNorma) {
+        outObsEl.innerText = `📌 Nota: A corrente calculada permitiria um cabo menor, mas a NBR 5410 exige bitola mínima de ${bitolaMinimaNorma} mm² para circuitos de ${tipoCircuito === 'tomada' ? 'Tomadas' : 'Iluminação'}.`;
+      } else {
+        outObsEl.innerText = '';
+      }
+
+      document.getElementById('outDisjuntor').innerText = disjuntorSel ? `${disjuntorSel} A` : 'Acima de 100A';
       document.getElementById('resNBR').style.display = 'block';
     }
 
@@ -593,7 +674,7 @@
 
       let startY = 20;
 
-      // Inserção do Logo se existente
+      // Logo no PDF
       if (perfilProfissional.logoBase64) {
         try {
           doc.addImage(perfilProfissional.logoBase64, 'JPEG', 14, 12, 30, 30);
@@ -653,7 +734,7 @@
       startY += 4;
       doc.line(14, startY, 196, startY);
 
-      // Tabela de Itens (Cabeçalhos)
+      // Tabela de Itens
       startY += 8;
       doc.setFont('helvetica', 'bold');
       doc.text('Descrição do Item / Material', 14, startY);
