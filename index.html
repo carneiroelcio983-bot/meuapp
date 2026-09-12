@@ -36,10 +36,17 @@
     .btn-del { width: 40px; background: #ef4444; color: #fff; padding: 12px 0; margin-top: 0; border: none; font-weight: bold; border-radius: 6px; }
 
     /* Estilos do Catálogo */
-    .cat-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; background: #0f172a; border-radius: 6px; margin-top: 6px; border: 1px solid #334155; }
-    .cat-item-info { font-size: 0.9rem; }
-    .cat-item-info small { color: #94a3b8; display: block; }
-    .btn-sm-del { width: auto; padding: 6px 10px; background: #ef4444; color: #fff; border: none; border-radius: 4px; font-size: 0.8rem; cursor: pointer; }
+    .cat-item { display: flex; flex-direction: column; gap: 8px; padding: 10px; background: #0f172a; border-radius: 6px; margin-top: 8px; border: 1px solid #334155; }
+    .cat-item.inativo { opacity: 0.5; border-color: #475569; }
+    .cat-item-header { display: flex; justify-content: space-between; align-items: center; }
+    .cat-item-info strong { color: #f8fafc; font-size: 0.95rem; }
+    .cat-item-info small { color: #38bdf8; display: block; margin-top: 2px; font-weight: bold; }
+    .cat-actions { display: flex; gap: 6px; }
+    .btn-sm { padding: 6px 10px; border: none; border-radius: 4px; font-size: 0.8rem; cursor: pointer; font-weight: bold; }
+    .btn-sm-edit { background: #facc15; color: #0f172a; }
+    .btn-sm-toggle { background: #475569; color: #fff; }
+    .btn-sm-del { background: #ef4444; color: #fff; }
+    .badge-inativo { background: #ef4444; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 6px; }
   </style>
 </head>
 <body>
@@ -132,18 +139,24 @@
     </div>
   </div>
 
-  <!-- NOVO MÓDULO: CATÁLOGO DE MATERIAIS SALVOS -->
+  <!-- MÓDULO 4: CATÁLOGO DE MATERIAIS SALVOS -->
   <div class="card">
-    <h3>4. Cadastro / Catálogo de Materiais Frequentes</h3>
+    <h3 id="catTituloForm">4. Cadastro / Catálogo de Materiais</h3>
+    
+    <input type="hidden" id="catEditId" value="">
+    
     <label>Nome do Material / Serviço:</label>
     <input type="text" id="catNome" placeholder="Ex: Cabo Flexível 2.5mm² (Metro)">
     
     <label>Preço Unitário Padrão (R$):</label>
     <input type="number" id="catPreco" step="0.01" placeholder="Ex: 3.50">
 
-    <button type="button" class="btn-add" onclick="salvarNoCatalogo()">+ Salvar no Catálogo</button>
+    <div class="btn-group">
+      <button type="button" class="btn-add" id="btnSalvarCat" onclick="salvarNoCatalogo()">+ Salvar no Catálogo</button>
+      <button type="button" class="btn-clear" id="btnCancelarEdit" style="display:none; margin-top:10px;" onclick="cancelarEdicao()">Cancelar</button>
+    </div>
 
-    <label style="margin-top:15px; font-weight:bold;">Seus Materiais Cadastrados:</label>
+    <label style="margin-top:20px; font-weight:bold;">Seus Materiais Cadastrados:</label>
     <div id="listaCatalogo" style="margin-top:8px;">
       <small style="color:#94a3b8;">Nenhum material cadastrado ainda.</small>
     </div>
@@ -178,10 +191,10 @@
   <script>
     // ESTADO E LOCALSTORAGE PARA MATERIAIS
     let catalogoMateriais = JSON.parse(localStorage.getItem('catalogo_eletrica')) || [
-      { id: 1, nome: "Cabo Flexível 2.5mm² (Metro)", preco: 3.50 },
-      { id: 2, nome: "Cabo Flexível 4.0mm² (Metro)", preco: 5.80 },
-      { id: 3, nome: "Disjuntor Monofásico 20A DIN", preco: 18.00 },
-      { id: 4, nome: "Mão de Obra - Instalação de Ponto", preco: 80.00 }
+      { id: 1, nome: "Cabo Flexível 2.5mm² (Metro)", preco: 3.50, ativo: true },
+      { id: 2, nome: "Cabo Flexível 4.0mm² (Metro)", preco: 5.80, ativo: true },
+      { id: 3, nome: "Disjuntor Monofásico 20A DIN", preco: 18.00, ativo: true },
+      { id: 4, nome: "Mão de Obra - Instalação de Ponto", preco: 80.00, ativo: true }
     ];
 
     function salvarCatalogoLocalStorage() {
@@ -191,20 +204,68 @@
     }
 
     function salvarNoCatalogo() {
+      const editId = document.getElementById('catEditId').value;
       const nome = document.getElementById('catNome').value.trim();
       const preco = parseFloat(document.getElementById('catPreco').value) || 0;
 
       if (!nome) { alert('Digite o nome do material.'); return; }
 
-      catalogoMateriais.push({ id: Date.now(), nome, preco });
-      document.getElementById('catNome').value = '';
-      document.getElementById('catPreco').value = '';
+      if (editId) {
+        // Atualiza item existente
+        const item = catalogoMateriais.find(m => m.id === parseInt(editId));
+        if (item) {
+          item.nome = nome;
+          item.preco = preco;
+        }
+        cancelarEdicao();
+      } else {
+        // Adiciona novo item
+        catalogoMateriais.push({ id: Date.now(), nome, preco, ativo: true });
+        document.getElementById('catNome').value = '';
+        document.getElementById('catPreco').value = '';
+      }
+
       salvarCatalogoLocalStorage();
     }
 
+    function editarMaterial(id) {
+      const item = catalogoMateriais.find(m => m.id === id);
+      if (!item) return;
+
+      document.getElementById('catEditId').value = item.id;
+      document.getElementById('catNome').value = item.nome;
+      document.getElementById('catPreco').value = item.preco;
+
+      document.getElementById('catTituloForm').innerText = "✏️ Editar Material";
+      document.getElementById('btnSalvarCat').innerText = "💾 Atualizar Material";
+      document.getElementById('btnCancelarEdit').style.display = "block";
+
+      window.scrollTo({ top: document.getElementById('catTituloForm').offsetTop - 20, behavior: 'smooth' });
+    }
+
+    function cancelarEdicao() {
+      document.getElementById('catEditId').value = "";
+      document.getElementById('catNome').value = "";
+      document.getElementById('catPreco').value = "";
+
+      document.getElementById('catTituloForm').innerText = "4. Cadastro / Catálogo de Materiais";
+      document.getElementById('btnSalvarCat').innerText = "+ Salvar no Catálogo";
+      document.getElementById('btnCancelarEdit').style.display = "none";
+    }
+
+    function alternarStatusMaterial(id) {
+      const item = catalogoMateriais.find(m => m.id === id);
+      if (item) {
+        item.ativo = !item.ativo;
+        salvarCatalogoLocalStorage();
+      }
+    }
+
     function removerDoCatalogo(id) {
-      catalogoMateriais = catalogoMateriais.filter(m => m.id !== id);
-      salvarCatalogoLocalStorage();
+      if (confirm('Tem certeza que deseja excluir este material permanentemente?')) {
+        catalogoMateriais = catalogoMateriais.filter(m => m.id !== id);
+        salvarCatalogoLocalStorage();
+      }
     }
 
     function renderizarCatalogo() {
@@ -215,22 +276,30 @@
       }
 
       container.innerHTML = catalogoMateriais.map(m => `
-        <div class="cat-item">
-          <div class="cat-item-info">
-            <strong>${m.nome}</strong>
-            <small>R$ ${m.preco.toFixed(2)}</small>
+        <div class="cat-item ${m.ativo ? '' : 'inativo'}">
+          <div class="cat-item-header">
+            <div class="cat-item-info">
+              <strong>${m.nome} ${m.ativo ? '' : '<span class="badge-inativo">Inativo</span>'}</strong>
+              <small>R$ ${m.preco.toFixed(2)}</small>
+            </div>
+            <div class="cat-actions">
+              <button class="btn-sm btn-sm-edit" onclick="editarMaterial(${m.id})">✏️</button>
+              <button class="btn-sm btn-sm-toggle" onclick="alternarStatusMaterial(${m.id})">${m.ativo ? 'Desativar' : 'Ativar'}</button>
+              <button class="btn-sm btn-sm-del" onclick="removerDoCatalogo(${m.id})">✕</button>
+            </div>
           </div>
-          <button class="btn-sm-del" onclick="removerDoCatalogo(${m.id})">Excluir</button>
         </div>
       `).join('');
     }
 
     function atualizarSelectsOrcamento() {
       const selects = document.querySelectorAll('.item-select');
+      const materiaisAtivos = catalogoMateriais.filter(m => m.ativo);
+
       selects.forEach(sel => {
         const valAtual = sel.value;
         sel.innerHTML = '<option value="">-- Selecionar do Catálogo (Opcional) --</option>' +
-          catalogoMateriais.map(m => `<option value="${m.id}">${m.nome} - R$ ${m.preco.toFixed(2)}</option>`).join('');
+          materiaisAtivos.map(m => `<option value="${m.id}">${m.nome} - R$ ${m.preco.toFixed(2)}</option>`).join('');
         sel.value = valAtual;
       });
     }
@@ -350,7 +419,8 @@
       const novaLinha = document.createElement('div');
       novaLinha.className = 'item-row';
       
-      const optionsSelect = catalogoMateriais.map(m => `<option value="${m.id}">${m.nome} - R$ ${m.preco.toFixed(2)}</option>`).join('');
+      const materiaisAtivos = catalogoMateriais.filter(m => m.ativo);
+      const optionsSelect = materiaisAtivos.map(m => `<option value="${m.id}">${m.nome} - R$ ${m.preco.toFixed(2)}</option>`).join('');
 
       novaLinha.innerHTML = `
         <select class="item-select" onchange="selecionarMaterialDoCatalogo(this)">
