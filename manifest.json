@@ -1,0 +1,15 @@
+{
+  "short_name": "Eletricista",
+  "name": "Ajudante do Eletricista",
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/192",
+      "type": "image/png",
+      "sizes": "192x192"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#0f172a",
+  "theme_color": "#1e293b",
+  "display": "standalone"
+}
