@@ -7,35 +7,149 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1e293b">
   <style>
-    body { font-family: sans-serif; padding: 20px; background: #0f172a; color: #fff; }
-    .card { background: #1e293b; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
-    input, button { width: 100%; padding: 10px; margin: 8px 0; border-radius: 4px; border: none; box-sizing: border-box; }
-    button { background: #eab308; color: #000; font-weight: bold; cursor: pointer; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; padding: 16px; background: #0f172a; color: #f8fafc; margin: 0; }
+    h2 { color: #facc15; margin-top: 10px; text-align: center; }
+    .card { background: #1e293b; padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #334155; }
+    .card h3 { margin-top: 0; color: #38bdf8; font-size: 1.1rem; }
+    label { font-size: 0.85rem; color: #94a3b8; display: block; margin-top: 10px; }
+    input, select, button { width: 100%; padding: 12px; margin-top: 4px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #fff; font-size: 1rem; }
+    button { background: #facc15; color: #0f172a; font-weight: bold; border: none; cursor: pointer; margin-top: 16px; }
+    button:active { background: #eab308; }
+    .res-box { background: #0f172a; border-left: 4px solid #facc15; padding: 10px; margin-top: 15px; border-radius: 0 6px 6px 0; }
+    .res-box p { margin: 5px 0; font-size: 0.95rem; }
+    .res-box strong { color: #38bdf8; }
   </style>
 </head>
 <body>
 
   <h2>⚡ Ajudante do Eletricista</h2>
 
+  <!-- CALCULADORA 1: NBR 5410 COM SELEÇÃO DE MÉTODO -->
   <div class="card">
-    <h3>Lei de Ohm (Potência W = V × A)</h3>
-    <input type="number" id="tensao" placeholder="Tensão (Volts, ex: 127 ou 220)">
-    <input type="number" id="corrente" placeholder="Corrente (Ampères)">
-    <button onclick="calcularPotencia()">Calcular Potência</button>
-    <p id="resultado"></p>
+    <h3>1. Dimensionar Cabo e Disjuntor (NBR 5410)</h3>
+    
+    <label>Tipo de Instalação / Eletroduto:</label>
+    <select id="nbrMetodo">
+      <option value="B1">Embutido na Parede / Alvenaria (Método B1)</option>
+      <option value="B2">Aparente / Exterior na Parede (Método B2)</option>
+    </select>
+
+    <label>Tensão da Rede (Volts):</label>
+    <select id="nbrTensao">
+      <option value="127">127 V (Monofásico)</option>
+      <option value="220">220 V (Bifásico / Monofásico)</option>
+      <option value="380">380 V (Trifásico)</option>
+    </select>
+
+    <label>Potência Total dos Equipamentos (Watts):</label>
+    <input type="number" id="nbrPotencia" placeholder="Ex: 5500 (Chuveiro), 1500 (Tomadas)">
+
+    <button onclick="calcularNBR5410()">Calcular Condutor e Disjuntor</button>
+
+    <div class="res-box" id="resNBR" style="display:none;">
+      <p>Corrente Calculada: <strong id="outCorrente">-</strong> A</p>
+      <p>Método de Instalação: <strong id="outMetodo">-</strong></p>
+      <p>Cabo Mínimo Recomendado: <strong id="outCabo">-</strong> mm²</p>
+      <p>Disjuntor Recomendado: <strong id="outDisjuntor">-</strong> A</p>
+    </div>
+  </div>
+
+  <!-- CALCULADORA 2: LEI DE OHM -->
+  <div class="card">
+    <h3>2. Calculadora Rápida (Lei de Ohm)</h3>
+    <label>Tensão (V):</label>
+    <input type="number" id="ohmV" placeholder="Ex: 220">
+    <label>Corrente (A):</label>
+    <input type="number" id="ohmA" placeholder="Ex: 10">
+    <button onclick="calcularOhm()">Calcular Potência (W)</button>
+    
+    <div class="res-box" id="resOhm" style="display:none;">
+      <p>Potência Total: <strong id="outOhmW">-</strong> Watts</p>
+    </div>
   </div>
 
   <script>
-    function calcularPotencia() {
-      const v = parseFloat(document.getElementById('tensao').value);
-      const i = parseFloat(document.getElementById('corrente').value);
-      if (v && i) {
-        document.getElementById('resultado').innerText = `Potência: ${v * i} Watts`;
+    // Tabelas NBR 5410 para condutores de cobre com isolação PVC (2 condutores carregados)
+    // Método B1: Eletroduto de seção circular embutido em alvenaria
+    const tabelaB1 = [
+      { mm: 1.5, amp: 17.5 },
+      { mm: 2.5, amp: 24.0 },
+      { mm: 4.0, amp: 32.0 },
+      { mm: 6.0, amp: 41.0 },
+      { mm: 10.0, amp: 57.0 },
+      { mm: 16.0, amp: 76.0 },
+      { mm: 25.0, amp: 101.0 },
+      { mm: 35.0, amp: 125.0 },
+      { mm: 50.0, amp: 151.0 }
+    ];
+
+    // Método B2: Eletroduto de seção circular sobre parede de madeira/alvenaria (Aparente/Exterior)
+    const tabelaB2 = [
+      { mm: 1.5, amp: 16.5 },
+      { mm: 2.5, amp: 23.0 },
+      { mm: 4.0, amp: 30.0 },
+      { mm: 6.0, amp: 38.0 },
+      { mm: 10.0, amp: 52.0 },
+      { mm: 16.0, amp: 69.0 },
+      { mm: 25.0, amp: 90.0 },
+      { mm: 35.0, amp: 111.0 },
+      { mm: 50.0, amp: 133.0 }
+    ];
+
+    const disjuntoresComerciais = [10, 16, 20, 25, 32, 40, 50, 63, 70, 80, 100];
+
+    function calcularNBR5410() {
+      const metodo = document.getElementById('nbrMetodo').value;
+      const v = parseFloat(document.getElementById('nbrTensao').value);
+      const w = parseFloat(document.getElementById('nbrPotencia').value);
+
+      if (!w || w <= 0) {
+        alert('Por favor, informe a potência em Watts.');
+        return;
+      }
+
+      // Corrente I = P / V
+      const corrente = w / v;
+
+      // Seleciona a tabela conforme o método de instalação
+      const tabela = (metodo === 'B2') ? tabelaB2 : tabelaB1;
+      const nomeMetodo = (metodo === 'B2') ? 'Aparente / Exterior (B2)' : 'Embutido em Parede (B1)';
+
+      // Busca o cabo adequado para a corrente
+      let caboSel = tabela.find(c => c.amp >= corrente);
+      
+      // Busca o disjuntor comercial adequado
+      let disjuntorSel = disjuntoresComerciais.find(d => d >= corrente);
+
+      document.getElementById('outCorrente').innerText = corrente.toFixed(2);
+      document.getElementById('outMetodo').innerText = nomeMetodo;
+      
+      if (caboSel) {
+        document.getElementById('outCabo').innerText = `${caboSel.mm} mm² (suporta até ${caboSel.amp}A nesse método)`;
       } else {
-        document.getElementById('resultado').innerText = 'Preencha os campos!';
+        document.getElementById('outCabo').innerText = 'Acima de 50mm² (Necessita projeto especial)';
+      }
+
+      if (disjuntorSel) {
+        document.getElementById('outDisjuntor').innerText = `${disjuntorSel} A (DIN)`;
+      } else {
+        document.getElementById('outDisjuntor').innerText = 'Acima de 100A';
+      }
+
+      document.getElementById('resNBR').style.display = 'block';
+    }
+
+    function calcularOhm() {
+      const v = parseFloat(document.getElementById('ohmV').value);
+      const i = parseFloat(document.getElementById('ohmA').value);
+      if (v && i) {
+        document.getElementById('outOhmW').innerText = (v * i).toFixed(0);
+        document.getElementById('resOhm').style.display = 'block';
       }
     }
 
+    // Registro do Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js');
     }
